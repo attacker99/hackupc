@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitMatch by Inditex</title>
+  <link rel="icon" href="data:,">
+  <!-- Local Tailwind CSS -->
+  <link href="./dist/output.css" rel="stylesheet">
+</head>
+
+<body class="bg-white text-gray-900 font-sans">
+  <div class="max-w-4xl mx-auto p-6 text-center">
+    <!-- Header -->
+    <h1 class="text-xl font-semibold mb-2">FitMatch by Inditex</h1>
+
+    <!-- Intro -->
+    <h2 class="text-2xl font-bold mb-2">Hi there !</h2>
+    <p class="text-xl font-semibold">
+      Spotted a piece you love? Let's style the whole look.
+    </p>
+    <p class="text-gray-600 mb-6">
+      Upload a photo or paste a link? We'll build a full outfit with matching
+      vibes from Zara, Bershka, Oysho & more.
+    </p>
+
+    <!-- Upload section -->
+    <div class="flex flex-col items-center gap-4 mb-10">
+      <!-- Row: Input and Upload Button -->
+      <div class="flex items-center justify-center gap-2 w-full">
+        <input id="productLink" type="text" placeholder="Paste a product link or upload a photo"
+          class="w-full max-w-md px-4 py-2 border border-gray-400 rounded-full" />
+        <label for="fileUpload"
+          class="cursor-pointer bg-green-900 text-white px-6 py-2 rounded-full hover:bg-green-800 transition inline-flex items-center gap-2">
+          <!-- Upload icon (Heroicons) -->
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l7.5-7.5 7.5 7.5M12 5.25v13.5" />
+          </svg>
+          Upload picture
+        </label>
+        <input type="file" id="fileUpload" accept="image/*" class="hidden" />
+      </div>
+
+      <!-- Image preview -->
+      <img id="imagePreview" class="mt-4 w-64 h-64 object-cover rounded-lg border border-gray-300 hidden"
+        alt="Uploaded preview" />
+    </div>
+
+    <!-- Button to get styled outfit -->
+    <button id="getStyledOutfit" class="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-400 transition">
+      Show Result
+    </button>
+
+    <!-- Styled Outfit Section -->
+    <h3 class="text-2xl font-semibold mb-6 mt-6">
+      Here's a full outfit we styled for you.
+    </h3>
+
+    <div id="styledOutfit" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Placeholder products (you will dynamically add them here via JS) -->
+    </div>
+  </div>
+
+  <!-- External JS script -->
+  <script type="module">
+    // Import external modules from CDN
+    import axios from 'https://esm.sh/axios@1.6.7';
+    import qs from 'https://esm.sh/qs@6.12.1';
+
+    // Import local module
+    const { main } = await import('./index.js');
+
+    // Pass the modules to the main function
+    window.mainWithDeps = (imageUrl) => main(imageUrl, { axios, qs });
+
+    // Handle file upload
+    const fileUpload = document.getElementById('fileUpload');
+    const imagePreview = document.getElementById('imagePreview');
+    const productLink = document.getElementById('productLink');
+    const getStyledOutfit = document.getElementById('getStyledOutfit');
+    const styledOutfit = document.getElementById('styledOutfit');
+
+    let currentImageUrl = '';
+
+    // Display image when a file is uploaded
+    fileUpload.addEventListener('change', function (event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          currentImageUrl = e.target.result;
+          imagePreview.src = currentImageUrl;
+          imagePreview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Display image from a product link (if the link is an image URL)
+    productLink.addEventListener('input', function () {
+      const linkValue = productLink.value;
+      const imageUrlPattern = /\.(jpg|jpeg|png|gif)$/i;
+
+      if (linkValue.match(imageUrlPattern)) {
+        currentImageUrl = linkValue;
+        imagePreview.src = currentImageUrl;
+        imagePreview.classList.remove('hidden');
+      } else {
+        imagePreview.classList.add('hidden');
+      }
+    });
+
+    // Handle Show Result button click
+    getStyledOutfit.addEventListener('click', async function () {
+      try {
+        if (!currentImageUrl) {
+          alert('Please provide an image URL or upload an image!');
+          return;
+        }
+
+        // Call our main function with the image URL and dependencies
+        const result = await window.mainWithDeps(currentImageUrl);
+        
+        // Clear previous styled outfit
+        styledOutfit.innerHTML = '';
+
+        // Display the main item
+        const mainItemDiv = document.createElement('div');
+        mainItemDiv.classList.add('bg-gray-100', 'p-4', 'rounded-lg', 'shadow-md', 'col-span-full');
+        mainItemDiv.innerHTML = `
+          <h4 class="font-semibold text-lg mb-2">Main Item: ${result.mainItem}</h4>
+        `;
+        styledOutfit.appendChild(mainItemDiv);
+
+        // Display the outfit suggestion
+        const outfitDiv = document.createElement('div');
+        outfitDiv.classList.add('bg-gray-100', 'p-4', 'rounded-lg', 'shadow-md', 'col-span-full');
+        outfitDiv.innerHTML = `
+          <h4 class="font-semibold text-lg mb-2">Complete Outfit:</h4>
+          <ul class="list-disc list-inside">
+            ${result.outfitSuggestion.map(item => `<li>${item}</li>`).join('')}
+          </ul>
+        `;
+        styledOutfit.appendChild(outfitDiv);
+
+        // Display each product in the outfit
+        result.products.forEach((product, index) => {
+          const productDiv = document.createElement('div');
+          productDiv.classList.add('bg-gray-100', 'p-4', 'rounded-lg', 'shadow-md');
+          productDiv.innerHTML = `
+            <h4 class="font-semibold">${result.outfitSuggestion[index]}</h4>
+            <p class="text-sm text-gray-600">${product.name}</p>
+            <p class="text-sm text-gray-600">${product.price} EUR</p>
+            <a href="${product.link}" target="_blank" class="text-blue-500 hover:underline">View Product</a>
+          `;
+          styledOutfit.appendChild(productDiv);
+        });
+      } catch (error) {
+        console.error('Error getting styled outfit:', error);
+        alert(`Error getting styled outfit: ${error.message}\n\nPlease check the console for more details.`);
+      }
+    });
+  </script>
+</body>
+
+</html>
